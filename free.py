@@ -1,8 +1,8 @@
-from bs4 import BeautifulSoup
 from email.mime.text import MIMEText
 import os
 import requests
 import smtplib
+import datetime
 
 
 def send_by_email(subject, message):
@@ -29,16 +29,22 @@ def send_by_email(subject, message):
 
 
 def main():
-    page = requests.get('https://www.packtpub.com/packt/offers/free-learning',
+    today = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = today + datetime.timedelta(days=1) 
+    page = requests.get('https://services.packtpub.com/free-learning-v1/offers?dateFrom={}Z&dateTo={}Z'.format(today.isoformat(), tomorrow.isoformat()),
                          headers={'User-Agent':'curl'})
 
-    soup = BeautifulSoup(page.content, 'html.parser')
-    book_title = soup.find_all('div', class_='dotd-title')[0].find('h2')\
-                               .next_element.lstrip().rstrip()
-    description = soup.div.find(class_='dotd-main-book-summary')\
-                      .find_all('div')[2].get_text().rstrip().lstrip()
+    desc = requests.get('https://www.googleapis.com/books/v1/volumes?q=isbn:{}'.format(page.json()['data'][0]['productId']),
+                         headers={'User-Agent':'curl'})
+
+    description = ''
+    book_title = ''
+    for book in desc.json()['items']:
+        book_title += book['volumeInfo']['title']
+        description += book['volumeInfo']['description']
 
     description += "\n\n https://www.packtpub.com/packt/offers/free-learning?from=block"
+    print(book_title)
     print(description)
     print(send_by_email(book_title, description))
     return book_title
