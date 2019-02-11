@@ -4,31 +4,45 @@ import requests
 import smtplib
 import datetime
 
+class Notifier:
+    def __init__(self, host, username, password, email_address):
+        self.host = host
+        self.username =  username
+        self.password = password
+        self.email_address = email_address
 
-def send_by_email(subject, message):
+    def send_by_email(self, subject, message, recipients):
+        msg = MIMEText('Book of the day is: {}'.format(message))
+        msg['Subject'] = '"{} - new book"'.format(subject)
+        msg['From'] = self.email_address
+
+        s = smtplib.SMTP(self.host, 587)
+        s.starttls()
+        s.login(self.username, self.password)
+        for address in recipients:
+            del msg['To']
+            msg['To'] = address
+            print(msg['To'])
+            # Send the message via our own SMTP server.
+            s.send_message(msg)
+            s.rset()
+        s.quit()
+
+
+def main():
     host = os.environ['MAIL_SMTP_URL']
     username = os.environ['MAIL_USERNAME']
     password = os.environ['MAIL_PASSWORD']
     email_address = os.environ['MAIL_ADDRESS']
+    recipients = os.environ['RECIPIENTS'].split(',')
 
-    msg = MIMEText('Book of the day is: {}'.format(message))
-    msg['Subject'] = '"{} - new book"'.format(subject)
-    msg['From'] = email_address
+    print(host,username,password,recipients)
+    (book_title, description) = get_book()
+    Notifier(host,username,password,email_address)
+    # Notifier.send_by_email(book_title,description, recipients)
+    # print(send_by_email(book_title, description))
 
-    s = smtplib.SMTP(host, 587)
-    s.starttls()
-    s.login(username, password)
-    for address in ['your_email_address', ]:
-        del msg['To']
-        msg['To'] = address
-        print(msg['To'])
-        # Send the message via our own SMTP server.
-        s.send_message(msg)
-        s.rset()
-    s.quit()
-
-
-def main():
+def get_book():
     today = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow = today + datetime.timedelta(days=1) 
     page = requests.get('https://services.packtpub.com/free-learning-v1/offers?dateFrom={}Z&dateTo={}Z'.format(today.isoformat(), tomorrow.isoformat()),
@@ -46,8 +60,7 @@ def main():
     description += "\n\n https://www.packtpub.com/packt/offers/free-learning?from=block"
     print(book_title)
     print(description)
-    print(send_by_email(book_title, description))
-    return book_title
+    return (book_title, description)
 
 if __name__ == '__main__':
     main()
