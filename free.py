@@ -3,6 +3,7 @@ import os
 import requests
 import smtplib
 import datetime
+from dotenv import load_dotenv
 
 class Notifier:
     def __init__(self, host, username, password, email_address):
@@ -30,17 +31,16 @@ class Notifier:
 
 
 def main():
-    host = os.environ['MAIL_SMTP_URL']
+    load_dotenv()
+    host = os.environ['MAIL_SMTP_HOST']
     username = os.environ['MAIL_USERNAME']
     password = os.environ['MAIL_PASSWORD']
     email_address = os.environ['MAIL_ADDRESS']
     recipients = os.environ['RECIPIENTS'].split(',')
 
-    print(host,username,password,recipients)
     (book_title, description) = get_book()
-    Notifier(host,username,password,email_address)
-    # Notifier.send_by_email(book_title,description, recipients)
-    # print(send_by_email(book_title, description))
+    notifier = Notifier(host,username,password,email_address)
+    print(notifier.send_by_email(book_title,description, recipients))
 
 def get_book():
     today = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -59,7 +59,6 @@ def get_book():
 
     description += "\n\n https://www.packtpub.com/packt/offers/free-learning?from=block"
     print(book_title)
-    print(description)
     return (book_title, description)
 
 if __name__ == '__main__':
