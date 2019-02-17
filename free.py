@@ -5,10 +5,11 @@ import smtplib
 import datetime
 from dotenv import load_dotenv
 
+
 class Notifier:
     def __init__(self, host, username, password, email_address):
         self.host = host
-        self.username =  username
+        self.username = username
         self.password = password
         self.email_address = email_address
 
@@ -39,27 +40,36 @@ def main():
     recipients = os.environ['RECIPIENTS'].split(',')
 
     (book_title, description) = get_book()
-    notifier = Notifier(host,username,password,email_address)
-    print(notifier.send_by_email(book_title,description, recipients))
+    notifier = Notifier(host, username, password, email_address)
+    print(notifier.send_by_email(book_title, description, recipients))
+
 
 def get_book():
-    today = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow = today + datetime.timedelta(days=1) 
-    page = requests.get('https://services.packtpub.com/free-learning-v1/offers?dateFrom={}Z&dateTo={}Z'.format(today.isoformat(), tomorrow.isoformat()),
-                         headers={'User-Agent':'curl'})
+    today = datetime.datetime.today().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    tomorrow = today + datetime.timedelta(days=1)
+    page = requests.get(
+        'https://services.packtpub.com/free-learning-v1/offers?dateFrom={}Z&dateTo={}Z'
+        .format(today.isoformat(), tomorrow.isoformat()),
+        headers={'User-Agent': 'curl'}
+    )
 
-    desc = requests.get('https://www.googleapis.com/books/v1/volumes?q=isbn:{}'.format(page.json()['data'][0]['productId']),
-                         headers={'User-Agent':'curl'})
+    desc = requests.get(
+        'https://static.packt-cdn.com/products/{}/summary'.format(
+            page.json()['data'][0]['productId']
+        )
+    )
+    book_title = desc.json()['title']
+    description = desc.json()['oneLiner']
+    description += "\nFull description: https://www.packtpub.com/{}".format(
+        desc.json()['shopUrl']
+    )
+    description += "\n\nhttps://www.packtpub.com/packt/offers/free-learning?from=block"
 
-    description = ''
-    book_title = ''
-    for book in desc.json()['items']:
-        book_title += book['volumeInfo']['title']
-        description += book['volumeInfo']['description']
-
-    description += "\n\n https://www.packtpub.com/packt/offers/free-learning?from=block"
     print(book_title)
     return (book_title, description)
+
 
 if __name__ == '__main__':
     main()
