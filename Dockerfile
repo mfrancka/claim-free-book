@@ -1,8 +1,11 @@
-FROM python:3.7-alpine
+FROM python:3.8-alpine
 
 RUN mkdir /app
-COPY requirements.txt /app/requirements.txt
+COPY Pipfile /app/Pipfile
+COPY Pipfile.lock /app/Pipfile.lock
 COPY free.py /app/free.py
-RUN pip install -r /app/requirements.txt
+RUN pip install pipenv
+WORKDIR /app
+RUN pipenv install --deploy
 
-ENTRYPOINT ["python3", "/app/free.py"]
+ENTRYPOINT ["pipenv", "run", "python3", "/app/free.py"]
