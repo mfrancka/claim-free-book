@@ -2,8 +2,8 @@ from email.mime.text import MIMEText
 import os
 import requests
 import smtplib
-import datetime
 from dotenv import load_dotenv
+from parsel import Selector
 
 
 class Notifier:
@@ -39,36 +39,27 @@ def main():
     email_address = os.environ['MAIL_ADDRESS']
     recipients = os.environ['RECIPIENTS'].split(',')
 
-    (book_title, description) = get_book()
+    book_informations = get_book()
     notifier = Notifier(host, username, password, email_address)
-    print(notifier.send_by_email(book_title, description, recipients))
+    description = make_full_description(book_informations)
+    print(notifier.send_by_email(book_informations["title"], description, recipients))
 
 
 def get_book():
-    today = datetime.datetime.today().replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    tomorrow = today + datetime.timedelta(days=1)
     page = requests.get(
-        'https://services.packtpub.com/free-learning-v1/offers?dateFrom={}Z&dateTo={}Z'
-        .format(today.isoformat(), tomorrow.isoformat()),
-        headers={'User-Agent': 'curl'}
+        'https://www.packtpub.com/free-learning', headers={'User-Agent': 'curl'}
     )
+    sel = Selector(text=page.text)
+    book_title = sel.xpath('//h3/text()').get()
+    description = sel.xpath('//div[contains(@class, "free_learning__product_description")]/span/text()').get()
+    publication_date = sel.xpath('//div[contains(@class, "free_learning__product_pages_date")]/span/text()').get().replace("Publication date:", "")
+    author = sel.xpath(r'//span[re:test(@class, ".*free_learning__author")]/text()').get().replace("\n", "")
+    rate = '-'.join(sel.xpath('//div[contains(@class, "product-info__rating")]/span/text()').getall())
+    return {"title" : book_title, "author": author, "rate": rate, "publication_date" : publication_date ,"description" : description}
 
-    desc = requests.get(
-        'https://static.packt-cdn.com/products/{}/summary'.format(
-            page.json()['data'][0]['productId']
-        )
-    )
-    book_title = desc.json()['title']
-    description = desc.json()['oneLiner']
-    description += "\nFull description: https://www.packtpub.com/{}".format(
-        desc.json()['shopUrl']
-    )
-    description += "\n\nhttps://www.packtpub.com/packt/offers/free-learning?from=block"
 
-    print(book_title)
-    return (book_title, description)
+def make_full_description(book_informations):
+    return f"Author: {book_informations['author']}\nRating: {book_informations['rate']}\nPublication date: {book_informations['publication_date']}\nDescription: {book_informations['description']}\n\nhttps://www.packtpub.com/free-learning"
 
 
 if __name__ == '__main__':
